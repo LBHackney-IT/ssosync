@@ -16,6 +16,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 
 	"github.com/awslabs/ssosync/internal/aws"
@@ -202,23 +203,24 @@ func (s *syncGSuite) SyncGroups() error {
 			log.WithField("user", u.Username).Debug("Checking user is in group already")
 			b, err := s.aws.IsUserInGroup(u, group)
 			if err != nil {
-				return err
-			}
-
-			if _, ok := memberList[u.Username]; ok {
-				if !b {
-					log.WithField("user", u.Username).Info("Adding user to group")
-					err := s.aws.AddUserToGroup(u, group)
-					if err != nil {
-						return err
-					}
-				}
+				fmt.Println(err)
+				continue
 			} else {
-				if b {
-					log.WithField("user", u.Username).Info("Removing user from group")
-					err := s.aws.RemoveUserFromGroup(u, group)
-					if err != nil {
-						return err
+				if _, ok := memberList[u.Username]; ok {
+					if !b {
+						log.WithField("user", u.Username).Info("Adding user to group")
+						err := s.aws.AddUserToGroup(u, group)
+						if err != nil {
+							return err
+						}
+					}
+				} else {
+					if b {
+						log.WithField("user", u.Username).Info("Removing user from group")
+						err := s.aws.RemoveUserFromGroup(u, group)
+						if err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -290,9 +292,9 @@ func (s *syncGSuite) ignoreUser(name string) bool {
 func (s *syncGSuite) ignoreGroup(name string) bool {
 	for _, g := range s.cfg.IgnoreGroups {
 		if g == name {
-			return true
+			return false
 		}
 	}
 
-	return false
+	return true
 }
