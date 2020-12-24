@@ -1,42 +1,40 @@
 # SSO Sync
 
-![Github Action](https://github.com/awslabs/ssosync/workflows/main/badge.svg)
-<a href='https://github.com/jpoles1/gopherbadger' target='_blank'>![gopherbadger-tag-do-not-edit](https://img.shields.io/badge/Go%20Coverage-42%25-brightgreen.svg?longCache=true&style=flat)</a>
-[![Go Report Card](https://goreportcard.com/badge/github.com/awslabs/ssosync)](https://goreportcard.com/report/github.com/awslabs/ssosync)
-[![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Taylor Swift](https://img.shields.io/badge/secured%20by-taylor%20swift-brightgreen.svg)](https://twitter.com/SwiftOnSecurity)
+## awslabs, modified by Hackney
 
-> Helping you populate AWS SSO directly with your Google Apps users
-
-SSO Sync will run on any platform that Go can build for. It is available in the [AWS Serverless Application Repository](https://console.aws.amazon.com/lambda/home#/create/app?applicationId=arn:aws:serverlessrepo:eu-west-1:084703771460:applications/ssosync).
-
-> :warning: there are breaking changes for versions `>= 0.02`
-
-> :warning: `>= 1.0.0-rc.5` groups to do not get deleted in AWS SSO when deleted in the Google Directory, and groups are synced by their email address
-
-> 🤔 we hope to support other providers in the future
-
-## Why?
-
-As per the [AWS SSO](https://aws.amazon.com/single-sign-on/) Homepage:
-
-> AWS Single Sign-On (SSO) makes it easy to centrally manage access
-> to multiple AWS accounts and business applications and provide users
-> with single sign-on access to all their assigned accounts and applications
-> from one place.
-
-Key part further down:
-
-> With AWS SSO, you can create and manage user identities in AWS SSO’s
->identity store, or easily connect to your existing identity source including
-> Microsoft Active Directory and **Azure Active Directory (Azure AD)**.
-
-AWS SSO can use other Identity Providers as well... such as Google Apps for Domains. Although AWS SSO
-supports a subset of the SCIM protocol for populating users, it currently only has support for Azure AD.
+This is forked from the AWS Labs version with a few changes:
+-  `--ignore-groups` is now inverse, and exclusively includes groups listed
+- Previously fatal errors when syncing groups are now logged, instead of crashing the script 
+- The Google Credentials environment variable (`SSOSYNC_GOOGLE_CREDENTIALS`) now takes the JSON directly in the parameter, as opposed to a path to the file on disk
 
 This project provides a CLI tool to pull users and groups from Google and push them into AWS SSO.
 `ssosync` deals with removing users as well. The heavily commented code provides you with the detail of
 what it is going to do.
+
+## To deploy at Hackney
+
+This is deployed within the HackIT account (where SSO is controlled) in eu-west-1
+
+### Running Locally 
+
+From the project root:
+- Build the image: `docker build -t ssosync .`
+- Launch the container: `docker run -it --rm --name ssosync-running ssosync`
+
+Note: you must supply the appropriate environment variables to the container in order to run this locally. You can do this with the `--env-file .envfile` option in the `docker run` command. Use `.envfile.example` as a template. 
+
+### Deploy to ECR
+From the project root:
+- Build the image: `docker build -t ssosync .`
+`aws ecr get-login-password --profile hackney-hackit --region eu-west-1 | docker login --username AWS --password-stdin 338027813792.dkr.ecr.eu-west-1.amazonaws.com`
+
+- Tag the image: `docker tag ssosync 338027813792.dkr.ecr.eu-west-1.amazonaws.com/hackney/ssosync`
+
+- Push the image: `docker push 338027813792.dkr.ecr.eu-west-1.amazonaws.com/hackney/ssosync`
+
+You then need to update the Task Definition to use the latest image.
+
+Note: if you are deploying from scratch, you will need to pass the environment variables (as in `.envfile.example`) to the container from Parameter/Secret Store. 
 
 ### References
 
@@ -110,7 +108,7 @@ Flags:
   -d, --debug                       Enable verbose / debug logging
   -e, --endpoint string             SCIM Endpoint
   -u, --google-admin string         Google Admin Email
-  -c, --google-credentials string   set the path to find credentials for Google (default "credentials.json")
+  -c, --google-credentials string   Provide the Google credentials JSON 
   -h, --help                        help for ssosync
       --ignore-groups strings       ignores these groups
       --ignore-users strings        ignores these users
@@ -131,27 +129,7 @@ The output of the command when run without 'debug' turned on looks like this:
 2020-05-26T12:08:15.703+0100	INFO	internal/sync.go:183	Done sync groups
 ```
 
-You can ignore users to be synced by setting `--ignore-users user1@example.com,user2@example.com` or `SSOSYNC_IGNORE_USERS=user1@example.com,user2@example.com`. Groups are ignored by setting `--ignore-groups group1@example.com,group1@example.com` or `SSOSYNC_IGNORE_GROUPS=group1@example.com,group1@example.com`.
-
-## AWS Lambda Usage
-
-NOTE: Using Lambda may incur costs in your AWS account. Please make sure you have checked
-the pricing for AWS Lambda and CloudWatch before continuing.
-
-Running ssosync once means that any changes to your Google directory will not appear in
-AWS SSO. To sync. regularly, you can run ssosync via AWS Lambda.
-
-:warning: You find it in the [AWS Serverless Application Repository](https://console.aws.amazon.com/lambda/home#/create/app?applicationId=arn:aws:serverlessrepo:eu-west-1:084703771460:applications/ssosync).
-
-## SAM
-
-You can use the AWS Serverless Application Model (SAM) to deploy this to your account.
-
-> Please, install the [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) and [GoReleaser](https://goreleaser.com/install/).
-
-Specify an Amazon S3 Bucket for the upload with `export S3_BUCKET=<YOUR_BUCKET>`.
-
-Execute `make package` in the console. Which will package and upload the function to the bucket. You can then use the `packaged.yaml` to configure and deploy the stack in [AWS CloudFormation Console](https://console.aws.amazon.com/cloudformation).
+You can ignore users to be synced by setting `--ignore-users user1@example.com,user2@example.com` or `SSOSYNC_IGNORE_USERS=user1@example.com,user2@example.com`. Groups are **included** by setting `--ignore-groups group1@example.com,group1@example.com` or `SSOSYNC_IGNORE_GROUPS=group1@example.com,group1@example.com`.
 
 ## License
 

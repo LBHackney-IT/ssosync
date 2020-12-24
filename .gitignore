@@ -20,6 +20,7 @@ token.json
 dist/
 main
 packaged.yaml
+.envfile
 
 # IDE
 .idea/
