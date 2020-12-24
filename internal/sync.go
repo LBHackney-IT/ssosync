@@ -17,7 +17,6 @@ package internal
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 
 	"github.com/awslabs/ssosync/internal/aws"
 	"github.com/awslabs/ssosync/internal/config"
@@ -236,14 +235,6 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 	log.Info("Creating the Google and AWS Clients needed")
 
 	creds := []byte(cfg.GoogleCredentials)
-
-	if !cfg.IsLambda {
-		b, err := ioutil.ReadFile(cfg.GoogleCredentials)
-		if err != nil {
-			return err
-		}
-		creds = b
-	}
 
 	// create a http client with retry and backoff capabilities
 	retryClient := retryablehttp.NewClient()
